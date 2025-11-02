@@ -1,0 +1,30 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.log
+
+# Node
+frontend-react/node_modules/
+frontend-react/.vite/
+frontend-react/dist/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Env & secrets
+*.env
+backend/.env
+backend/.env.local
+
+# IDE
+.vscode/
+.idea/
+*.code-workspace
+
+# Cache
+.cache/
+frontend-react/.eslintcache
