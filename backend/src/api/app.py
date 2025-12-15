@@ -30,7 +30,15 @@ load_dotenv()
 app = Flask(__name__)
 # Configure CORS: allow specific origin if set, else allow localhost for dev
 frontend_origin = os.getenv('FRONTEND_ORIGIN', 'http://localhost:3000')
-CORS(app, resources={r"/api/*": {"origins": [frontend_origin, "http://localhost:3000", "http://127.0.0.1:3000"]}})
+CORS(app, resources={r"/api/*": {"origins": [
+    frontend_origin, 
+    "http://localhost:3000", 
+    "http://127.0.0.1:3000",
+    "http://localhost:3001",
+    "http://127.0.0.1:3001",
+    "http://localhost:3002",
+    "http://127.0.0.1:3002"
+]}})
 
 # JWT configuration
 app.config['JWT_SECRET_KEY'] = os.getenv('JWT_SECRET_KEY', 'local')
@@ -77,18 +85,34 @@ chats_col = None
 messages_col = None
 
 if MONGO_URI and MONGO_DB_NAME:
-    mongo_client = MongoClient(MONGO_URI)
-    db = mongo_client[MONGO_DB_NAME]
-    users_col = db['users']
-    chats_col = db['chats']
-    messages_col = db['messages']
-    # Indexes
     try:
-        users_col.create_index([('email', ASCENDING)], unique=True)
-        chats_col.create_index([('user_id', ASCENDING), ('created_at', ASCENDING)])
-        messages_col.create_index([('chat_id', ASCENDING), ('created_at', ASCENDING)])
-    except Exception:
-        pass
+        # Short timeout so a bad URI/credentials don't hang startup forever
+        mongo_client = MongoClient(MONGO_URI, serverSelectionTimeoutMS=5000)
+        # Force an initial ping to validate connection & auth
+        mongo_client.admin.command('ping')
+
+        db = mongo_client[MONGO_DB_NAME]
+        users_col = db['users']
+        chats_col = db['chats']
+        messages_col = db['messages']
+
+        # Indexes
+        try:
+            users_col.create_index([('email', ASCENDING)], unique=True)
+            chats_col.create_index([('user_id', ASCENDING), ('created_at', ASCENDING)])
+            messages_col.create_index([('chat_id', ASCENDING), ('created_at', ASCENDING)])
+        except Exception:
+            # Index creation errors are non-fatal
+            pass
+        print("✅ Connected to MongoDB and initialized collections")
+    except Exception as e:
+        # Log but keep API running so we can return a clear error to the frontend
+        print(f"⚠️ Failed to connect/authenticate with MongoDB: {e}")
+        mongo_client = None
+        db = None
+        users_col = None
+        chats_col = None
+        messages_col = None
 
 # Optional: Pre-initialize models on startup if requested
 preload = os.getenv("PRELOAD_MODELS", "false").lower() == "true"

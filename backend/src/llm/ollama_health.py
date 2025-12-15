@@ -1,17 +1,25 @@
 """
 Ollama Health Check
-Verifies Ollama is responsive before sending queries
+Verifies Ollama is responsive before sending queries.
+Respects OLLAMA_URL env so backend + llm client stay in sync.
 """
 
+import os
 import requests
+
+
+def _base_url() -> str:
+    return os.getenv("OLLAMA_URL", "http://127.0.0.1:11434").rstrip("/")
+
 
 def check_ollama_health(timeout=5):
     """
-    Check if Ollama is running and responsive
+    Check if Ollama is running and responsive.
     Returns: (is_healthy: bool, message: str)
     """
     try:
-        response = requests.get("http://localhost:11434/api/tags", timeout=timeout)
+        url = f"{_base_url()}/api/tags"
+        response = requests.get(url, timeout=timeout)
         if response.status_code == 200:
             return True, "Ollama is running"
         else:
@@ -26,14 +34,15 @@ def check_ollama_health(timeout=5):
 
 def get_loaded_models(timeout=5):
     """
-    Get list of loaded models from Ollama
-    Returns: list of model names or empty list
+    Get list of loaded models from Ollama.
+    Returns: list of model names or empty list.
     """
     try:
-        response = requests.get("http://localhost:11434/api/tags", timeout=timeout)
+        url = f"{_base_url()}/api/tags"
+        response = requests.get(url, timeout=timeout)
         if response.status_code == 200:
             data = response.json()
-            return [model.get('name', '') for model in data.get('models', [])]
+            return [model.get("name", "") for model in data.get("models", [])]
         return []
-    except:
+    except Exception:
         return []

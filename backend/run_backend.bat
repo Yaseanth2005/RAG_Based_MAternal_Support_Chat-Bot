@@ -12,6 +12,14 @@ if errorlevel 1 (
     exit /b 1
 )
 
+REM Activate venv if it exists
+if exist .venv\Scripts\activate.bat (
+    echo Activating virtual environment...
+    call .venv\Scripts\activate.bat
+) else (
+    echo No virtual environment found (.venv), using system Python...
+)
+
 REM Run the backend
 python run_backend.py
 

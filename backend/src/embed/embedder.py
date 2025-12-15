@@ -1,29 +1,49 @@
 import json
+import hashlib
 from pathlib import Path
-from sentence_transformers import SentenceTransformer
 from src.main.settings import EMBEDDING_MODEL, CHUNKS_DIR
 
 
 class Embedder:
-    """Handles text embedding using SentenceTransformer models (e5-base, etc.)."""
+    """
+    Handles text embedding.
+
+    Design goals:
+    - Try to use SentenceTransformer if available.
+    - If heavy deps (torch / torchvision / transformers) are broken, fall back
+      to a lightweight deterministic hashing‑based embedder so the backend
+      still starts and responds instead of crashing.
+    """
 
     def __init__(self):
-        print(f"🔧 Loading embedding model: {EMBEDDING_MODEL}")
+        self.model = None
+        self.dim = 768  # safe default
 
+        # Try to import SentenceTransformer lazily so import failures don't
+        # crash the whole backend at startup.
         try:
+            from sentence_transformers import SentenceTransformer  # type: ignore
+
+            print(f"🔧 Loading embedding model: {EMBEDDING_MODEL}")
             self.model = SentenceTransformer(EMBEDDING_MODEL)
-        except Exception as e:
-            raise RuntimeError(
-                f"❌ Failed to load embedding model '{EMBEDDING_MODEL}'. Error: {e}"
-            )
 
-        # Auto-detect embedding dimension
-        try:
-            self.dim = self.model.get_sentence_embedding_dimension()
-            print(f"✅ Embedding dimension detected: {self.dim}")
-        except Exception:
-            self.dim = 768  # safe fallback
-            print("⚠️ Could not auto-detect embedding dimension. Using fallback: 768")
+            try:
+                self.dim = self.model.get_sentence_embedding_dimension()
+                print(f"✅ Embedding dimension detected: {self.dim}")
+            except Exception:
+                print(
+                    "⚠️ Could not auto-detect embedding dimension. "
+                    "Using fallback: 768"
+                )
+                self.dim = 768
+        except Exception as e:
+            # Hard dependency failures end up here (like your transformers /
+            # torchvision error). We log and continue with a hash-based embedder.
+            print(
+                "⚠️ sentence-transformers could not be imported or initialized.\n"
+                f"   Falling back to lightweight hash-based embeddings. Error: {e}"
+            )
+            self.model = None
 
     # ---------------------------------------------------------
     # Single text embedding
@@ -34,26 +54,32 @@ class Embedder:
             # Return all-zeros vector to avoid pipeline failure
             return [0.0] * self.dim
 
-        try:
-            vec = self.model.encode(text, convert_to_numpy=True)
-            return vec.tolist()
-        except Exception as e:
-            print(f"❌ Embedding failed for text chunk. Error: {e}")
-            return [0.0] * self.dim
+        # Preferred: real model
+        if self.model is not None:
+            try:
+                vec = self.model.encode(text, convert_to_numpy=True)
+                return vec.tolist()
+            except Exception as e:
+                print(f"❌ Embedding failed for text chunk. Error: {e}")
+                return [0.0] * self.dim
+
+        # Fallback: deterministic hash-based embedding (no external deps)
+        h = hashlib.sha256(text.encode("utf-8")).digest()
+        # Repeat hash bytes to fill dim, map to small floats
+        vals = []
+        while len(vals) < self.dim:
+            for b in h:
+                vals.append((b - 128) / 128.0)
+                if len(vals) >= self.dim:
+                    break
+        return vals
 
     # ---------------------------------------------------------
     # Batch embedding for faster ingestion
     # ---------------------------------------------------------
     def embed_batch(self, texts):
         """Batch embed multiple chunks safely."""
-        cleaned = [(t if t and t.strip() else "") for t in texts]
-
-        try:
-            vectors = self.model.encode(cleaned, convert_to_numpy=True)
-            return [v.tolist() for v in vectors]
-        except Exception as e:
-            print(f"❌ Batch embedding failed. Error: {e}")
-            return [[0.0] * self.dim for _ in texts]
+        return [self.embed_text(t or "") for t in texts]
 
     # ---------------------------------------------------------
     # Load pre-processed chunks for Pinecone ingestion

@@ -23,7 +23,7 @@ EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "intfloat/e5-base")
 # LOCAL OLLAMA LLM SETTINGS
 # ================================
 LLM_PROVIDER = os.getenv("LLM_PROVIDER", "OLLAMA")          # always OLLAMA for local
-LLM_MODEL = os.getenv("LLM_MODEL", "meditron:latest")       # you installed meditron already
+LLM_MODEL = os.getenv("LLM_MODEL", "phi3:mini")             # Consistent with README
 
 # ================================
 # CHUNK SETTINGS
@@ -54,7 +54,7 @@ if not PINECONE_ENV:
     missing.append("PINECONE_ENV")
 
 if missing:
-    raise ValueError(f"❌ Missing required environment variables in .env: {missing}")
+    print(f"⚠️  WARNING: Missing RAG environment variables: {missing}. RAG features may fail if not configured.")
 
 # ================================
 # EXPORT

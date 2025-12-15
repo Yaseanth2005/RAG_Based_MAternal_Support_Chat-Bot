@@ -32,3 +32,6 @@ Flask-JWT-Extended==4.6.0
 # Build tooling (ensure wheels can be built when needed)
 setuptools>=68.0.0
 wheel>=0.41.0
+
+# PDF Processing
+pypdf==3.17.4

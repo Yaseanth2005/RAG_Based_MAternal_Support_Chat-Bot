@@ -28,3 +28,13 @@ backend/.env.local
 # Cache
 .cache/
 frontend-react/.eslintcache
+
+# ===============================
+# RAG / AI Generated Artifacts
+# ===============================
+backend/processed/chunks/
+backend/processed/archived/
+
+# Optional: vector stores / embeddings (if any)
+backend/processed/vectors/
+

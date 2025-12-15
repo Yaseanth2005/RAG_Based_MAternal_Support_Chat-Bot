@@ -16,7 +16,7 @@ export const AuthProvider = ({ children }) => {
     try {
       if (token) localStorage.setItem('token', token); else localStorage.removeItem('token');
       if (user) localStorage.setItem('user', JSON.stringify(user)); else localStorage.removeItem('user');
-    } catch {}
+    } catch { }
   }, [token, user]);
 
   const login = async (email, password) => {

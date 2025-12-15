@@ -53,11 +53,20 @@ def main():
         )
         
     except ImportError as e:
-        print("❌ Failed to import Flask app. Error:")
-        print(f"   {str(e)}")
-        print()
-        print("💡 Make sure you have installed all dependencies:")
-        print("   pip install -r requirements.txt")
+        import traceback
+        print("\n!!! ImportError Caught !!!")
+        traceback.print_exc()
+        with open("error.log", "w", encoding="utf-8") as f:
+            f.write(str(e))
+            f.write(traceback.format_exc())
+        sys.exit(1)
+    except Exception as e:
+        import traceback
+        print(f"\n!!! Unexpected Error: {e}")
+        traceback.print_exc()
+        with open("error.log", "w", encoding="utf-8") as f:
+            f.write(str(e))
+            f.write(traceback.format_exc())
         sys.exit(1)
     except Exception as e:
         print(f"❌ Fatal error: {str(e)}")
